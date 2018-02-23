@@ -1,0 +1,9 @@
+<deployment>
+    <process host="A" function="send">
+        <argument value="Gmail"/>
+    </process>
+    <process host="B" function="receive">
+        <argument value="Gmail"/>
+    </process>
+
+</deployment>

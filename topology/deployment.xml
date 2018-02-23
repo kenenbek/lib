@@ -1,0 +1,41 @@
+<deployment>
+
+	<process host="LoadBalancer" function="load_balancer"/>
+
+	<process host="LoadBalancer" function="tracer"/>
+
+	<process host="Server1" function="server_manager">
+		<argument value="Server1"/>
+	</process>
+	<process host="Server2" function="server_manager">
+		<argument value="Server2"/>
+	</process>
+	<process host="Server3" function="server_manager">
+		<argument value="Server3"/>
+	</process>
+	<process host="Server4" function="server_manager">
+		<argument value="Server4"/>
+	</process>
+
+
+	<process host="FabricManager" function="PCIeFabric_manager">
+		<argument value="FabricManager"/>
+	</process>
+
+	<process host="Cache_host" function="Cache_manager">
+		<argument value="CacheManager"/>
+	</process>
+
+	<process host="JBOD1" function="disk">
+		<argument value="JBOD1"/>
+	</process>
+
+	<process host="JBOD2" function="disk">
+		<argument value="JBOD2"/>
+	</process>
+
+	<process host="SSD" function="disk">
+		<argument value="SSD"/>
+	</process>
+
+</deployment>
