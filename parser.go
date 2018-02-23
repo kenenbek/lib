@@ -253,7 +253,7 @@ func (env *Environment) getFunctionByName(FuncName string) func(*Process, []stri
 func argsToStr(args []argument) []string {
 	array := make([]string, len(args))
 	for i := range args {
-		array = append(array, args[i].Value)
+		array[i] = args[i].Value
 	}
 	return array
 }

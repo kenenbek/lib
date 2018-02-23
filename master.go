@@ -2,10 +2,9 @@ package lib
 
 import (
 	"fmt"
-	"sync"
 )
 
-func master(env *Environment, until interface{}, wg *sync.WaitGroup) {
+func master(env *Environment, until interface{}) {
 	if until != nil {
 		switch until := until.(type) {
 		case nil:
@@ -16,38 +15,18 @@ func master(env *Environment, until interface{}, wg *sync.WaitGroup) {
 				Event: &Event{timeEnd: untilFloat64},
 			}
 			globalStop.callbacks = append(globalStop.callbacks, env.stopSimulation)
-			env.PutEvents(&globalStop)
+			env.queue = append(env.queue, &globalStop)
 		}
 	}
-	// Initial
+
 	var currentEvent EventInterface
-	var isWorkerAlive bool
-	defer wg.Done()
-
-	env.WaitWorkers()
-
-	env.CreateTransferEvents()
-	currentEvent, isWorkerAlive = env.Step()
 
 	for !env.shouldStop {
-		if isWorkerAlive {
-			env.FindNextWorkers(currentEvent)
-			env.SendStartSignalWorkers()
-			env.WaitWorkers()
-		}
+		env.FindNextWorkers(currentEvent)
+		env.SendStartToSignalWorkers()
+		env.WaitWorkers()
 		env.CreateTransferEvents()
-		currentEvent, isWorkerAlive = env.Step()
+		currentEvent = env.Step()
 	}
 	fmt.Println("end-master")
-}
-
-func isWorkerAlive(currentEvent EventInterface) bool {
-	alive := false
-	workers := currentEvent.getWorkers()
-	for i := range workers {
-		if workers[i] != nil && !workers[i].noMoreEvents {
-			alive = true
-		}
-	}
-	return alive
 }

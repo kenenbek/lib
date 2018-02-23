@@ -1,10 +1,10 @@
 package lib
 
 import (
-	 "fmt"
 	"sort"
 	"sync"
 	"sync/atomic"
+	_"fmt"
 )
 
 var env *Environment
@@ -30,7 +30,7 @@ type Environment struct {
 	pid ProcessID
 
 	waitWorkerAmount uint64
-	afterWait chan interface{}
+	stepEnd chan interface{}
 	nextWorkers []*Process
 }
 
@@ -41,19 +41,13 @@ func NewEnvironment() *Environment{
 		ReceiveEventsNameMap:make(map[string]*ReceiveMock),
 		ReceiverSendersMap:make(map[*ReceiveMock][]*SendEvent),
 
-		afterWait: make(chan interface{}),
+		stepEnd: make(chan interface{}),
 	}
 	return e
 }
 
 func (env *Environment) stopSimulation(_ EventInterface) {
 	env.shouldStop = true
-}
-
-func (env *Environment) PutEvents(events ...EventInterface) {
-	env.mutex.Lock()
-	defer env.mutex.Unlock()
-	env.queue = append(env.queue, events...)
 }
 
 func (env *Environment) updateQueue(deltaTime float64) {
@@ -114,43 +108,33 @@ func (env *Environment) CreateTransferEvents() {
 			delete(env.ReceiverSendersMap, receiveMock)
 		}
 	}
-	env.SortQueuesInLinks()
+	env.FindNextTransferEvent()
 }
 
-func (env *Environment) PopFromQueue() EventInterface {
+func (env *Environment) Step() EventInterface {
+	// check daemons
+	if len(env.workers) == 0 || len(env.workers) == len(env.daemonList) {
+		env.shouldStop = true
+		return nil
+	}
+	if len(env.queue) == 0 {
+		panic("deadlock")
+	}
 	var currentEvent EventInterface
-
 	sort.Sort(ByTime(env.queue))
 
 	currentEvent, env.queue = env.queue[0], env.queue[1:]
+
+	env.updateQueue(currentEvent.getTimeEnd() - env.currentTime)
+	env.currentTime = currentEvent.getTimeEnd()
 
 	// Process the event callbacks
 	callbacks := currentEvent.getCallbacks()
 	for _, callback := range callbacks {
 		callback(currentEvent)
 	}
+
 	return currentEvent
-}
-
-
-func (env *Environment) Step() (EventInterface, bool) {
-	// check daemons
-	if len(env.workers) == len(env.daemonList) {
-		env.shouldStop = true
-		return nil, false
-	}
-
-	currentEvent := env.PopFromQueue()
-
-	if len(env.queue) > 0 {
-		env.updateQueue(currentEvent.getTimeEnd() - env.currentTime)
-		env.currentTime = currentEvent.getTimeEnd()
-	} else {
-		env.shouldStop = true
-	}
-	// Calculate time end for the next transfer event
-	env.FindNextTransferEvent()
-	return currentEvent, isWorkerAlive(currentEvent)
 }
 
 
@@ -172,10 +156,16 @@ func (env *Environment) FindNextWorkers(event EventInterface){
 		if !ce.worker.noMoreEvents {
 			env.nextWorkers = append(env.nextWorkers, ce.worker)
 		}
+	case nil:
+		for key := range env.workers{
+			env.nextWorkers = append(env.nextWorkers, env.workers[key])
+		}
 	}
+
 }
 
-func (env *Environment) SendStartSignalWorkers() {
+func (env *Environment) SendStartToSignalWorkers() {
+	atomic.StoreUint64(&env.waitWorkerAmount, uint64(len(env.nextWorkers)))
 	for key := range env.nextWorkers {
 		env.nextWorkers[key].resumeChan <- struct{}{}
 	}
@@ -183,9 +173,8 @@ func (env *Environment) SendStartSignalWorkers() {
 
 func (env *Environment) WaitWorkers() {
 	remaining := uint64(0)
-	fmt.Println("number of wait", atomic.LoadUint64(&env.waitWorkerAmount))
 	for atomic.LoadUint64(&env.waitWorkerAmount) != remaining {
-		<- env.afterWait
+		<- env.stepEnd
 		remaining++
 	}
 

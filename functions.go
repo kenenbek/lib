@@ -5,30 +5,6 @@ import (
 	"fmt"
 )
 
-type RoutesMap map[Route]*Link
-
-func (routeMap RoutesMap) Get(r Route) (d *Link) {
-	d, ok := routeMap[r]
-	if ok {
-		return
-	}
-	d, ok = routeMap[Route{start: r.finish, finish: r.start}]
-	if ok {
-		return
-	}
-	return nil
-}
-
-type Route struct {
-	start  *Host
-	finish *Host
-}
-
-type Link struct {
-	*Resource
-	name string
-}
-
 func (worker *Process) SendTask(task *Task, address string) interface{} {
 	event := SendEvent{
 		Event: &Event{
@@ -51,7 +27,7 @@ func (worker *Process) SendTask(task *Task, address string) interface{} {
 	env.mutex.Unlock()
 
 	//should wait for an own turn
-	worker.env.afterWait <- struct{}{}
+	worker.env.stepEnd <- struct{}{}
 	<-worker.resumeChan
 	return nil
 }
@@ -96,7 +72,7 @@ func (worker *Process) ReceiveTask(address string) *Task {
 	worker.env.ReceiveEventsNameMap[address] =  &event
 	env.mutex.Unlock()
 
-	worker.env.afterWait <- struct{}{}
+	worker.env.stepEnd <- struct{}{}
 	<-worker.resumeChan
 
 	return event.task
@@ -116,7 +92,7 @@ func (worker *Process) SIM_wait(waitTime float64) interface{} {
 	worker.env.mutex.Unlock()
 
 	// Wait for an own turn
-	worker.env.afterWait <- struct{}{}
+	worker.env.stepEnd <- struct{}{}
 	<-worker.resumeChan
 	return nil
 }

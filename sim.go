@@ -2,7 +2,6 @@ package lib
 
 import (
 	"strings"
-	"sync"
 	"sync/atomic"
 )
 
@@ -11,10 +10,7 @@ func SIM_init() {
 }
 
 func SIM_run(until interface{}) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go master(env, until, &wg)
-	wg.Wait()
+	master(env, until)
 }
 
 func SIM_get_clock() float64 {

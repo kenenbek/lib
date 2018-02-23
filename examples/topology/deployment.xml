@@ -1,7 +1,0 @@
-<deployment>
-    <process host="A" function="sender">
-    </process>
-    <process host="B" function="receiver">
-    </process>
-
-</deployment>

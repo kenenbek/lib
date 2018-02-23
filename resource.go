@@ -19,7 +19,8 @@ type Resource struct {
 }
 
 func (r *Resource) Put(e *TransferEvent) {
-	r.CounterAdd()
+	atomic.AddInt64(&r.counter, 1)
+	atomic.AddInt64(&r._counter, -1)
 	r.queue = append(r.queue, e)
 }
 
@@ -32,7 +33,7 @@ func (r *Resource) EstimateTimeEnd(e *SendEvent) {
 	}
 }
 
-func (env *Environment) SortQueuesInLinks() {
+func (env *Environment) FindNextTransferEvent() {
 	for route := range env.routesMap {
 		sort.Sort(ByRemainingSize(env.routesMap[route].queue))
 		if len(env.routesMap[route].queue) > 0 {
@@ -42,19 +43,26 @@ func (env *Environment) SortQueuesInLinks() {
 	}
 }
 
-func (env *Environment) FindNextTransferEvent() {
-	for route := range env.routesMap {
-		sort.Sort(ByRemainingSize(env.routesMap[route].queue))
-		if len(env.routesMap[route].queue) > 0 {
-			env.routesMap[route].queue[0].sendEvent.timeEnd = env.currentTime + env.routesMap[route].queue[0].sendEvent.remainingSize/(env.routesMap[route].bandwidth/float64(env.routesMap[route].counter))
-		}
+type RoutesMap map[Route]*Link
+
+func (routeMap RoutesMap) Get(r Route) (d *Link) {
+	d, ok := routeMap[r]
+	if ok {
+		return
 	}
+	d, ok = routeMap[Route{start: r.finish, finish: r.start}]
+	if ok {
+		return
+	}
+	return nil
 }
 
-func (r *Resource) CounterAdd() {
-	atomic.AddInt64(&r.counter, 1)
+type Route struct {
+	start  *Host
+	finish *Host
 }
 
-func (r *Resource) CounterMinus() {
-	atomic.AddInt64(&r.counter, -1)
+type Link struct {
+	*Resource
+	name string
 }

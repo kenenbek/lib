@@ -14,5 +14,5 @@ func main() {
 
 	lib.SIM_launch_application(os.Args[2])
 
-	lib.SIM_run(20.)
+	lib.SIM_run(nil)
 }

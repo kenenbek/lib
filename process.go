@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -33,15 +32,14 @@ func (pid *ProcessID) Next() uint64 {
 
 func ProcWrapper(processStrategy func(*Process, []string), w *Process, args []string) {
 	go func() {
+		<-w.resumeChan
 		processStrategy(w, args)
 		//end of process
-		w.env.afterWait <- struct{}{}
 		w.env.mutex.Lock()
 		w.noMoreEvents = true
 		delete(env.workers, w.pid)
 		w.env.mutex.Unlock()
-		<-w.resumeChan
-		fmt.Println("END")
+		w.env.stepEnd <- struct{}{}
 	}()
 }
 

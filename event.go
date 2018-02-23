@@ -2,7 +2,7 @@ package lib
 
 import (
 	"fmt"
-	"math"
+	"sync/atomic"
 )
 
 type EventInterface interface {
@@ -111,15 +111,7 @@ func (s ByTime) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 func (s ByTime) Less(i, j int) bool {
-	if s[i].getTimeEnd() == math.MaxFloat64 && s[j].getTimeEnd() == math.MaxFloat64 {
-		return s[i].getSize() < s[j].getSize()
-	} else if s[i].getTimeEnd() == math.MaxFloat64 {
-		return false
-	} else if s[j].getTimeEnd() == math.MaxFloat64 {
-		return true
-	} else {
-		return s[i].getTimeEnd() < s[j].getTimeEnd()
-	}
+	return s[i].getTimeEnd() < s[j].getTimeEnd()
 }
 
 type ByRemainingSize []*TransferEvent
@@ -155,6 +147,6 @@ func (e *Event) String() string {
 
 func(_ *SendEvent) deleteSelfFromResource(eventInterface EventInterface){
 	if CE, ok := eventInterface.(*TransferEvent); ok {
-		CE.sendEvent.resource.(*Link).CounterMinus()
+		atomic.AddInt64(&CE.sendEvent.resource.(*Link).counter, -1)
 		_, CE.sendEvent.resource.(*Link).queue = CE.sendEvent.resource.(*Link).queue[0], CE.sendEvent.resource.(*Link).queue[1:]}
 }
